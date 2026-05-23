@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-neutral-heading: var(--neutral-heading);
+  --color-neutral-secondary: var(--neutral-secondary);
+  --color-card-bg: var(--card-bg);
+  --color-chart-bg: var(--chart-bg);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-input-bg: var(--input-bg);
+  --color-ring-offset: var(--ring-offset);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Light theme (default) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  --primary: #00a651;
+  --gain: #16a34a;
+  --loss: #dc2626;
+  --neutral-heading: #1e293b;
+  --neutral-secondary: #64748b;
+  --card-bg: #ffffff;
+  --chart-bg: #f8fafc;
+  --border: #e2e8f0;
+  --muted: #f1f5f9;
+  --surface: #ffffff;
+  --input-bg: #ffffff;
+  --ring-offset: #f8fafc;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --neutral-heading: #f8fafc;
+  --neutral-secondary: #94a3b8;
+  --card-bg: #1e293b;
+  --chart-bg: #0f172a;
+  --border: #334155;
+  --muted: #1e293b;
+  --surface: #1e293b;
+  --input-bg: #0f172a;
+  --ring-offset: #0b1220;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
+
+  html {
+    @apply h-full;
+  }
+
+  body {
+    @apply min-h-full bg-background text-foreground antialiased;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

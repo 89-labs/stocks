@@ -1,0 +1,11 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/news/refresh",
+      "schedule": "0 */3 * * *"
+    }
+  ]
+}

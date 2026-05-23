@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NaijaStocks
 
-## Getting Started
+Nigerian Stock Exchange (NGX) analysis platform built with Next.js 16, TypeScript, Tailwind CSS, MongoDB, and Mongoose. Live NGX quotes are pulled from Yahoo Finance with no API key required.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+npm install
+cp .env.example .env.local
+# Edit .env.local — only MONGODB_URI is required to enable auth-gated features
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See [`.env.example`](.env.example). Only `MONGODB_URI` and `NEXTAUTH_SECRET` are required.
 
-## Learn More
+| Variable | Required | Purpose |
+|---|---|---|
+| `MONGODB_URI` | Yes (for auth features) | MongoDB connection string (Atlas free tier works) |
+| `MONGODB_DB` | No | Defaults to `naijastocks` |
+| `NEXTAUTH_URL` / `NEXTAUTH_SECRET` | Yes (for auth) | Authentication |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google OAuth |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | No | Production caching + rate limiting |
+| `TWELVE_DATA_API_KEY` | No | Secondary quote source |
+| `ANTHROPIC_API_KEY` | No | AI predictions & briefs (graceful fallback) |
 
-To learn more about Next.js, take a look at the following resources:
+## Data Sources
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Quotes and OHLCV: `yahoo-finance2` (NGX tickers with `.LG` suffix, e.g. `DANGCEM.LG`, `GTCO.LG`, `MTNN.LG`). NGX All-Share Index pulled from `^NGSEINDX`. No API key needed.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Live polling: the home and stock detail pages refresh quotes every 60 seconds client-side; server caches: 60 s in-memory + 5 min Redis.
 
-## Deploy on Vercel
+News: RSS feeds from BusinessDay, Nairametrics, The Guardian Nigeria, parsed with `rss-parser`. Sentiment scored with a Nigerian-finance keyword lexicon.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy to Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push to GitHub
+2. Import the project in Vercel
+3. Set environment variables from `.env.example`
+4. Deploy
+
+## Features
+
+- **Market Overview** — NGX All-Share Index, top movers, economic indicators, news
+- **Stock Listings** — Searchable, filterable table with ISR (5 min)
+- **Stock Detail** — Live quote, chart, financials, AI predictions, trade simulator
+- **News** — RSS aggregation with sentiment scoring
+- **AI Insights** — Daily market brief with sector signals
+- **Auth** — Google OAuth + email magic link (NextAuth.js + MongoDB adapter)
+- **Watchlist / Portfolio / History** — Auth-gated with soft preview gates
+- **Light mode only** — clean, on-brand visual identity
