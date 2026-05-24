@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
-import { formatNGN } from "@/lib/utils";
+import { formatChartTooltipValue } from "@/lib/charts/tooltip-format";
 import { buildForecastChartData } from "@/lib/charts/forecast-chart-data";
 import type { StockGrowthForecast } from "@/types/stock-forecast";
 
@@ -88,7 +88,7 @@ export function StockForecastChart({ forecast }: StockForecastChartProps) {
           />
           <Tooltip
             formatter={(value, name) => [
-              formatNGN(Number(value ?? 0)),
+              formatChartTooltipValue(value),
               String(name),
             ]}
             labelFormatter={(label) => String(label)}

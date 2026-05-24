@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
-import { formatNGN } from "@/lib/utils";
+import { formatChartTooltipValue } from "@/lib/charts/tooltip-format";
 import type { SimulationProjectionPoint } from "@/types";
 
 const BASE_STROKE = "#2563eb";
@@ -79,7 +79,7 @@ export function SimulationGrowthChart({ points, amount }: SimulationGrowthChartP
             width={56}
           />
           <Tooltip
-            formatter={(value, name) => [formatNGN(Number(value ?? 0)), String(name)]}
+            formatter={(value, name) => [formatChartTooltipValue(value), String(name)]}
             labelFormatter={(label) => String(label)}
             contentStyle={{ fontSize: 12 }}
           />
