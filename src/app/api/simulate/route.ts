@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/auth";
-import { AIService } from "@/lib/data/ai-service";
+import { simulateTradeWithForecast } from "@/lib/dashboard/trade-simulation";
 import { StockDataService } from "@/lib/data/stock-data-service";
 import { getSimRateLimit, checkRateLimit } from "@/lib/cache/rate-limit";
 import { headers } from "next/headers";
+
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Stock not found" }, { status: 404 });
   }
 
-  const result = await AIService.simulateTrade(
+  const result = await simulateTradeWithForecast(
     stock.ticker,
     amount,
     stock.price,

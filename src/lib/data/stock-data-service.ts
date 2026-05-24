@@ -44,6 +44,11 @@ const QUOTES_BATCH_DELAY_MS = Math.max(
   100,
   parseInt(process.env.ITICK_QUOTES_BATCH_DELAY_MS || "600", 10)
 );
+/** Delay between sequential /stock/kline calls (free tier: "your request is too much") */
+const KLINE_REQUEST_DELAY_MS = Math.max(
+  200,
+  parseInt(process.env.ITICK_KLINE_DELAY_MS || "550", 10)
+);
 /** Max tickers to refresh via batch API on listings load (free tier) */
 const LIVE_QUOTES_LIMIT = Math.min(
   NGX_UNIVERSE.length,
@@ -58,7 +63,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function isValidITickQuoteRow(row: ITickQuoteRow | null | undefined): row is ITickQuoteRow {
-  return Boolean(row?.s) && typeof row.ld === "number" && Number.isFinite(row.ld);
+  return Boolean(row?.s) && typeof row?.ld === "number" && Number.isFinite(row.ld);
 }
 
 function isValidITickInfoRow(row: ITickInfoRow | null | undefined): row is ITickInfoRow {
@@ -314,15 +319,20 @@ function baselineStockQuote(code: string): StockQuote | undefined {
 /** Live quote via iTick (detail pages, charts companion) — not used for the stock list */
 export async function getStockQuote(code: string): Promise<StockQuote> {
   const normalized = code.toUpperCase();
+  const cacheKey = `itick:quote:${normalized}`;
   const fallback = baselineStockQuote(normalized);
 
   if (isITickRateLimited()) {
+    const cached = await cacheGet<{ data: StockQuote; cachedAt: number }>(cacheKey);
+    if (cached?.data) {
+      return { ...cached.data, stale: true };
+    }
     if (fallback) return fallback;
     throw new ITickError(429, "Rate limited");
   }
 
   return withStaleFallback(
-    `itick:quote:${normalized}`,
+    cacheKey,
     CACHE_TTL.QUOTE,
     async () => {
       const row = await iTickGet<ITickQuoteRow | null>("/stock/quote", {
@@ -373,9 +383,13 @@ async function fetchQuoteChunk(codes: string[], attempt = 0): Promise<StockQuote
 }
 
 export async function getBatchStockQuotes(codes: string[]): Promise<StockQuote[]> {
-  if (!codes.length || !getITickApiKey() || isITickRateLimited()) return [];
+  if (!codes.length || !getITickApiKey()) return [];
   const normalized = [...new Set(codes.map((c) => c.toUpperCase()))].sort();
   const cacheKey = `itick:quotes:v2:${normalized.length}:${normalized[0]}:${normalized[normalized.length - 1]}`;
+  if (isITickRateLimited()) {
+    const cached = await cacheGet<{ data: StockQuote[]; cachedAt: number }>(cacheKey);
+    return cached?.data ?? [];
+  }
 
   return withStaleFallback(
     cacheKey,
@@ -411,12 +425,22 @@ export async function getStockKline(
   limit: number,
   et?: number
 ): Promise<KlineBar[]> {
-  if (!getITickApiKey() || isITickRateLimited()) return [];
+  if (!getITickApiKey()) return [];
 
   const normalized = code.toUpperCase();
-  const end = et ?? Date.now();
   const ttl = klineCacheTtlSeconds(kType);
+  const now = Date.now();
+  const end =
+    et ??
+    (isIntradayKType(kType)
+      ? Math.floor(now / (ttl * 1000)) * ttl * 1000
+      : Math.floor(now / 86_400_000) * 86_400_000);
   const cacheKey = `itick:kline:${normalized}:${kType}:${limit}:${end}`;
+
+  if (isITickRateLimited()) {
+    const cached = await cacheGet<{ data: KlineBar[]; cachedAt: number }>(cacheKey);
+    return cached?.data ?? [];
+  }
 
   return withStaleFallback(
     cacheKey,
@@ -437,6 +461,7 @@ export async function getStockKline(
 
 export async function getStockInfo(code: string): Promise<StockInfo> {
   const normalized = code.toUpperCase();
+  const cacheKey = `itick:info:${normalized}`;
   const entry = lookupTicker(normalized);
   const fallback: StockInfo = {
     code: normalized,
@@ -444,10 +469,14 @@ export async function getStockInfo(code: string): Promise<StockInfo> {
     sector: entry?.sector,
     exchange: EXCHANGE,
   };
-  if (!getITickApiKey() || isITickRateLimited()) return fallback;
+  if (!getITickApiKey()) return fallback;
+  if (isITickRateLimited()) {
+    const cached = await cacheGet<{ data: StockInfo; cachedAt: number }>(cacheKey);
+    return cached?.data ?? fallback;
+  }
 
   return withStaleFallback<StockInfo>(
-    `itick:info:${normalized}`,
+    cacheKey,
     HOT_TTL.INFO,
     async () => {
       const row = await iTickGet<ITickInfoRow | null>("/stock/info", {
@@ -543,6 +572,30 @@ export async function getStockKlineForTimeframe(
 ): Promise<KlineBar[]> {
   const { kType, limit } = TIMEFRAME_KLINE[timeframe];
   return getStockKline(code, kType, limit, et);
+}
+
+/**
+ * Fetch klines for multiple tickers without bursting iTick (parallel calls trigger "too much").
+ */
+export async function getBatchStockKlinesForTimeframe(
+  codes: string[],
+  timeframe: Timeframe
+): Promise<Map<string, KlineBar[]>> {
+  const result = new Map<string, KlineBar[]>();
+  const normalized = [...new Set(codes.map((c) => c.toUpperCase()))].filter(Boolean);
+  if (!normalized.length) return result;
+
+  for (let i = 0; i < normalized.length; i++) {
+    const code = normalized[i]!;
+    const bars = await getStockKlineForTimeframe(code, timeframe);
+    result.set(code, bars);
+
+    if (i < normalized.length - 1 && getITickApiKey() && !isITickRateLimited()) {
+      await sleep(KLINE_REQUEST_DELAY_MS);
+    }
+  }
+
+  return result;
 }
 
 function buildStockFromBaseline(entry: NGXEntry, stale = true): Stock {

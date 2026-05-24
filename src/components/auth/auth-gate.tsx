@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ title, description, preview }: AuthGateProps) {
+  const pathname = usePathname();
+
   return (
     <div className="relative">
       {preview && (
@@ -24,7 +27,9 @@ export function AuthGate({ title, description, preview }: AuthGateProps) {
           <Lock className="h-8 w-8 text-primary" />
           <h3 className="text-lg font-semibold text-neutral-heading">{title}</h3>
           <p className="max-w-sm text-sm text-neutral-secondary">{description}</p>
-          <Button onClick={() => signIn()}>Sign In to Unlock</Button>
+          <Button onClick={() => signIn(undefined, { callbackUrl: pathname })}>
+            Sign In to Unlock
+          </Button>
         </CardContent>
       </Card>
     </div>

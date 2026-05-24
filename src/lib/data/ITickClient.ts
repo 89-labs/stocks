@@ -91,7 +91,10 @@ export async function iTickGet<T>(
 
   if (typeof envelope.code !== "number" || envelope.code !== 0) {
     const msg = envelope.msg?.trim() || parseErrorMessage(body, res.status) || "Unknown iTick error";
-    console.error("[iTick]", msg);
+    const rateLimited = /too much|rate|limit/i.test(msg);
+    if (!rateLimited) {
+      console.error("[iTick]", msg);
+    }
     throw new ITickError(envelope.code ?? -1, msg);
   }
 

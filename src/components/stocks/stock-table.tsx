@@ -12,10 +12,18 @@ import { SECTORS } from "@/lib/data/ngx-universe";
 import type { Stock } from "@/types";
 import type { StocksListResponse } from "@/lib/api/stocks-list";
 
-function StockTableRow({ stock, striped }: { stock: Stock; striped: boolean }) {
+function StockTableRow({
+  stock,
+  striped,
+  detailPath = "/stocks",
+}: {
+  stock: Stock;
+  striped: boolean;
+  detailPath?: string;
+}) {
   const router = useRouter();
 
-  const goToStock = () => router.push(`/stocks/${stock.ticker}`);
+  const goToStock = () => router.push(`${detailPath}/${stock.ticker}`);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -62,9 +70,18 @@ const SEARCH_DEBOUNCE_MS = 350;
 interface StockTableProps {
   data: StocksListResponse;
   isValidating?: boolean;
+  /** Base URL for listing pagination/search (no query string). */
+  basePath?: string;
+  /** Base path for stock detail pages (ticker appended). */
+  detailPath?: string;
 }
 
-export function StockTable({ data, isValidating }: StockTableProps) {
+export function StockTable({
+  data,
+  isValidating,
+  basePath = "/stocks",
+  detailPath = "/stocks",
+}: StockTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items: stocks, total, page, pageSize, totalPages } = data;
@@ -94,9 +111,9 @@ export function StockTable({ data, isValidating }: StockTableProps) {
         if (v) params.set(k, v);
         else params.delete(k);
       });
-      router.replace(`/stocks?${params.toString()}`, { scroll: false });
+      router.replace(`${basePath}?${params.toString()}`, { scroll: false });
     },
-    [router, searchParams]
+    [router, searchParams, basePath]
   );
 
   const updateParams = useCallback(
@@ -190,7 +207,12 @@ export function StockTable({ data, isValidating }: StockTableProps) {
                 </tr>
               ) : (
                 stocks.map((stock, i) => (
-                  <StockTableRow key={stock.ticker} stock={stock} striped={i % 2 !== 0} />
+                  <StockTableRow
+                    key={stock.ticker}
+                    stock={stock}
+                    striped={i % 2 !== 0}
+                    detailPath={detailPath}
+                  />
                 ))
               )}
             </tbody>

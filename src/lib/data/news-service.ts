@@ -10,6 +10,30 @@ import { ingestMarketNews } from "@/lib/data/news/ingest-rss";
 
 const NEWS_CACHE_KEY = "news:all";
 const NEWS_BUNDLE_MEM_KEY = "news:bundle";
+const FINANCIAL_NEWS_SOURCES = new Set([
+  "BusinessDay",
+  "Nairametrics",
+  "Vanguard Money",
+  "The Punch Business",
+  "NAN",
+]);
+const FINANCIAL_NEWS_KEYWORDS = [
+  "stock",
+  "ngx",
+  "shares",
+  "market",
+  "cbn",
+  "naira",
+  "banking",
+  "forex",
+  "inflation",
+  "earnings",
+  "profit",
+  "revenue",
+  "gdp",
+  "fiscal",
+  "monetary",
+];
 
 export interface NewsBundle {
   articles: NewsArticle[];
@@ -28,6 +52,16 @@ export interface NewsListResult {
   targetCount: number;
 }
 
+function isMarketRelevantArticle(article: NewsArticle): boolean {
+  if (FINANCIAL_NEWS_SOURCES.has(article.source)) return true;
+  const searchable = `${article.title} ${article.summary}`.toLowerCase();
+  return FINANCIAL_NEWS_KEYWORDS.some((keyword) => searchable.includes(keyword));
+}
+
+function filterMarketRelevantArticles(articles: NewsArticle[]): NewsArticle[] {
+  return articles.filter(isMarketRelevantArticle);
+}
+
 async function loadNewsBundle(): Promise<NewsBundle> {
   const cached = await cacheGet<{ data: NewsArticle[]; cachedAt: number }>(NEWS_CACHE_KEY);
   const now = Date.now();
@@ -36,15 +70,16 @@ async function loadNewsBundle(): Promise<NewsBundle> {
     const age = now - cached.cachedAt;
     const isStale = age >= NEWS_CACHE_TTL_SECONDS * 1000;
     if (!isStale) {
+      const relevantArticles = filterMarketRelevantArticles(cached.data);
       return {
-        articles: cached.data.slice(0, NEWS_TARGET_COUNT),
+        articles: relevantArticles.slice(0, NEWS_TARGET_COUNT),
         refreshedAt: new Date(cached.cachedAt).toISOString(),
         stale: false,
       };
     }
   }
 
-  const articles = await ingestMarketNews();
+  const articles = filterMarketRelevantArticles(await ingestMarketNews());
   const cachedAt = Date.now();
   await cacheSet(
     NEWS_CACHE_KEY,

@@ -14,7 +14,7 @@ export function ScenarioTable({ scenarios }: ScenarioTableProps) {
           <tr className="border-b border-border">
             <th className="px-3 py-2 text-left font-medium text-neutral-secondary">Scenario</th>
             <th className="px-3 py-2 text-right font-medium text-neutral-secondary">Price</th>
-            <th className="px-3 py-2 text-right font-medium text-neutral-secondary">Value</th>
+            <th className="px-3 py-2 text-right font-medium text-neutral-secondary">12M value</th>
             <th className="px-3 py-2 text-right font-medium text-neutral-secondary">Gain/Loss</th>
           </tr>
         </thead>

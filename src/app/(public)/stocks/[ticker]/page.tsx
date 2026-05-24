@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { StockDataService } from "@/lib/data/stock-data-service";
+import { getCurrentUser } from "@/lib/auth/session";
 import { NewsService } from "@/lib/data/news-service";
 import { StockDetailShell } from "@/components/stocks/stock-detail-shell";
 import { AIPredictionPanel } from "@/components/stocks/ai-prediction-panel";
@@ -32,6 +33,11 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function StockDetailPage({ params }: PageProps) {
   const { ticker } = await params;
+  const user = await getCurrentUser();
+  if (user) {
+    redirect(`/dashboard/stocks/${ticker.toUpperCase()}`);
+  }
+
   const stock = await StockDataService.getStockDetail(ticker);
 
   if (!stock) notFound();

@@ -5,7 +5,15 @@ import { useStocksListFromSearchParams } from "@/hooks/use-stocks-list";
 import { StockTable } from "@/components/stocks/stock-table";
 import { StockTableSkeleton } from "@/components/ui/skeleton";
 
-export function StockListings() {
+interface StockListingsProps {
+  basePath?: string;
+  detailPath?: string;
+}
+
+export function StockListings({
+  basePath = "/stocks",
+  detailPath = "/stocks",
+}: StockListingsProps) {
   const searchParams = useSearchParams();
   const { data, error, isLoading, isValidating } = useStocksListFromSearchParams(searchParams);
 
@@ -25,5 +33,12 @@ export function StockListings() {
     return <StockTableSkeleton />;
   }
 
-  return <StockTable data={data} isValidating={isValidating} />;
+  return (
+    <StockTable
+      data={data}
+      isValidating={isValidating}
+      basePath={basePath}
+      detailPath={detailPath}
+    />
+  );
 }

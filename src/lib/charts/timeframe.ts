@@ -34,3 +34,15 @@ export function sliceOHLCVByDays(data: OHLCV[], days: number): OHLCV[] {
   const sliced = sorted.filter((d) => d.date >= cutoffStr);
   return sliced.length > 0 ? sliced : sorted.slice(-Math.min(days, sorted.length));
 }
+
+export function timeframeLabel(tf: Timeframe): string {
+  const labels: Record<Timeframe, string> = {
+    "1D": "1 Day",
+    "1W": "1 Week",
+    "1M": "1 Month",
+    "3M": "3 Months",
+    "1Y": "1 Year",
+    "5Y": "5 Years",
+  };
+  return labels[tf];
+}

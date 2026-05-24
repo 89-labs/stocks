@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
+  serverExternalPackages: ["@mastra/*", "libsql"],
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",

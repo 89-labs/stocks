@@ -36,7 +36,13 @@ export function BrokerCards() {
   );
 }
 
-export function RelatedStocks({ stocks }: { stocks: { ticker: string; name: string; price: number; changePercent: number }[] }) {
+export function RelatedStocks({
+  stocks,
+  detailPath = "/stocks",
+}: {
+  stocks: { ticker: string; name: string; price: number; changePercent: number }[];
+  detailPath?: string;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -47,7 +53,7 @@ export function RelatedStocks({ stocks }: { stocks: { ticker: string; name: stri
           {stocks.map((s) => (
             <Link
               key={s.ticker}
-              href={`/stocks/${s.ticker}`}
+              href={`${detailPath}/${s.ticker}`}
               className="flex items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-muted"
             >
               <div>

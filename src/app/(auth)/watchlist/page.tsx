@@ -66,7 +66,7 @@ export default async function WatchlistPage() {
           <CardContent className="p-8 text-center">
             <p className="text-neutral-secondary">
               No watchlists yet. Browse{" "}
-              <Link href="/stocks" className="text-primary hover:underline">
+              <Link href="/dashboard/stocks" className="text-primary hover:underline">
                 stocks
               </Link>{" "}
               and add them to your watchlist.
@@ -88,7 +88,7 @@ export default async function WatchlistPage() {
                       return (
                         <Link
                           key={`${item.ticker}-${idx}`}
-                          href={`/stocks/${item.ticker}`}
+                          href={`/dashboard/stocks/${item.ticker}`}
                           className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-muted"
                         >
                           <div>

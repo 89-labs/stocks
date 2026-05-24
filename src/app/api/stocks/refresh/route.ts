@@ -16,8 +16,10 @@ export async function POST(request: Request) {
 
   if (ticker) {
     revalidatePath(`/stocks/${ticker}`);
+    revalidatePath(`/dashboard/stocks/${ticker}`);
   } else {
     revalidatePath("/stocks");
+    revalidatePath("/dashboard/stocks");
     revalidatePath("/");
   }
 

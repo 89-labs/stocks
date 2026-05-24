@@ -1,9 +1,12 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { StockListings } from "@/components/stocks/stock-listings";
 import { RefreshMarketData } from "@/components/stocks/refresh-market-data";
 import { StockTableSkeleton } from "@/components/ui/skeleton";
 import { LISTINGS_PAGE_SIZE, NGX_LISTINGS_LIMIT } from "@/lib/data/ngx-universe";
 import { getNgxPulseCacheStatus } from "@/lib/data/ngx-pulse-cache";
+import { getCurrentUser } from "@/lib/auth/session";
+import { stocksListQueryString } from "@/lib/dashboard/stocks-list-query";
 
 function formatPulseTime(iso: string | null): string {
   if (!iso) return "—";
@@ -13,7 +16,17 @@ function formatPulseTime(iso: string | null): string {
   });
 }
 
-export default async function StocksPage() {
+export default async function StocksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const user = await getCurrentUser();
+  const sp = await searchParams;
+  if (user) {
+    redirect(`/dashboard/stocks${stocksListQueryString(sp)}`);
+  }
+
   const pulse = await getNgxPulseCacheStatus();
 
   return (

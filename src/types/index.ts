@@ -95,6 +95,15 @@ export interface AIPrediction {
   disclaimer: string;
 }
 
+export interface SimulationProjectionPoint {
+  label: string;
+  date?: string;
+  bear: number;
+  base: number;
+  bull: number;
+  invested: number;
+}
+
 export interface SimulationResult {
   ticker: string;
   amount: number;
@@ -113,7 +122,16 @@ export interface SimulationResult {
     gainLoss: number;
     gainLossPercent: number;
   }[];
+  /** Portfolio value over time from AI forecast (Now → 12M) */
+  projectionChart: SimulationProjectionPoint[];
   narrative?: string;
+  analysisSummary?: string;
+  forecastConfidence?: "low" | "medium" | "high";
+  newsSentiment?: "bullish" | "neutral" | "bearish";
+  expectedGainBase?: number;
+  expectedGainBasePercent?: number;
+  analysisDate?: string;
+  fromAiAnalysis?: boolean;
 }
 
 export interface BrokerLink {

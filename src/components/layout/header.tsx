@@ -6,6 +6,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import {
   BarChart3,
   Home,
+  LayoutDashboard,
   LineChart,
   Newspaper,
   Sparkles,
@@ -27,6 +28,7 @@ const publicNav = [
   { href: "/stocks", label: "Stocks", icon: BarChart3 },
   { href: "/news", label: "News", icon: Newspaper },
   { href: "/insights", label: "Insights", icon: Sparkles },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 const authNav = [
@@ -51,20 +53,26 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {[...publicNav, ...(session ? authNav : [])].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                pathname === item.href
-                  ? "bg-primary/10 text-primary"
-                  : "text-neutral-secondary hover:bg-muted hover:text-neutral-heading"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {[...publicNav, ...(session ? authNav : [])].map((item) => {
+            const active =
+              item.href === "/dashboard"
+                ? pathname.startsWith("/dashboard")
+                : pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-neutral-secondary hover:bg-muted hover:text-neutral-heading"
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -74,7 +82,7 @@ export function Header() {
               <span className="text-sm text-neutral-secondary">
                 {session.user?.name || session.user?.email}
               </span>
-              <Button variant="ghost" size="sm" onClick={() => signOut()}>
+              <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -82,7 +90,7 @@ export function Header() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => signIn()}
+              onClick={() => signIn(undefined, { callbackUrl: pathname })}
               className="hidden sm:flex"
             >
               <LogIn className="h-4 w-4" />
@@ -102,22 +110,26 @@ export function Header() {
 
       {mobileOpen && (
         <nav className="border-t border-border px-4 py-3 md:hidden">
-          {[...publicNav, ...(session ? authNav : [])].map((item) => (
+          {[...publicNav, ...(session ? authNav : [])].map((item) => {
+            const active =
+              item.href === "/dashboard"
+                ? pathname.startsWith("/dashboard")
+                : pathname === item.href;
+            return (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
-                pathname === item.href
-                  ? "bg-primary/10 text-primary"
-                  : "text-neutral-secondary"
+                active ? "bg-primary/10 text-primary" : "text-neutral-secondary"
               )}
             >
               <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
-          ))}
+            );
+          })}
           <div className="mt-3 border-t border-border pt-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-secondary">
               Appearance
@@ -128,7 +140,7 @@ export function Header() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => signIn()}
+              onClick={() => signIn(undefined, { callbackUrl: pathname })}
               className="mt-2 w-full"
             >
               Sign In

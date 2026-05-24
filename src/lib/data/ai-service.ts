@@ -1,13 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { AIPrediction, MarketBrief, SimulationResult } from "@/types";
 import { AI_DISCLAIMER } from "@/lib/utils";
 import { StockDataService } from "./stock-data-service";
 
-function getAnthropicClient(): Anthropic | null {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-  return new Anthropic({ apiKey });
-}
+/**
+ * Legacy helper layer kept for backwards-compatibility with existing UI
+ * (AIPredictionPanel, TradeSimulator, InsightsPage, etc.). All AI generation
+ * now flows through the Mastra agent registry — there are no direct calls to
+ * `@ai-sdk/groq` from this module any more — agents use Groq via Mastra.
+ *
+ * Heavy data-shape conversions are kept here so callers continue to receive
+ * the `AIPrediction`, `SimulationResult`, and `MarketBrief` shapes they
+ * already render.
+ */
 
 function linearRegressionForecast(
   prices: number[],
@@ -19,7 +23,10 @@ function linearRegressionForecast(
     return { price: last, low: last * 0.95, high: last * 1.05, confidence: 0.3 };
   }
 
-  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumX2 = 0;
   for (let i = 0; i < n; i++) {
     sumX += i;
     sumY += prices[i];
@@ -43,6 +50,35 @@ function linearRegressionForecast(
   };
 }
 
+/**
+ * Lazily import the Mastra runtime so this module is safe to use from
+ * non-AI code paths (or in test environments without a Groq key).
+ */
+async function getMastra() {
+  const { mastra } = await import("@/mastra");
+  return mastra;
+}
+
+async function tryGenerateText(
+  agentId:
+    | "stockAnalysisAgent"
+    | "marketBriefAgent"
+    | "stockScreenerAgent"
+    | "predictionAgent",
+  prompt: string
+): Promise<string | null> {
+  if (!process.env.GROQ_API_KEY) return null;
+  try {
+    const mastra = await getMastra();
+    const agent = mastra.getAgentById(agentId);
+    const result = await agent.generate(prompt);
+    return result.text;
+  } catch (err) {
+    console.error(`[NaijaStocks] Mastra agent ${agentId} failed:`, err);
+    return null;
+  }
+}
+
 export class AIService {
   static async predictStock(
     ticker: string,
@@ -57,32 +93,22 @@ export class AIService {
     const pred30 = linearRegressionForecast(prices, 30);
     const pred90 = linearRegressionForecast(prices, 90);
 
-    let reasoning = `${companyName} (${ticker}) is currently trading at ₦${currentPrice.toFixed(2)}. Based on recent price trends and linear regression analysis, the model suggests `;
-
     const direction30 = pred30.price > currentPrice ? "upward" : "downward";
-    reasoning += `a ${direction30} trajectory over the next 30 days, with a base case target of ₦${pred30.price.toFixed(2)}. `;
-    reasoning += `Key factors include sector performance, CBN monetary policy, and NGN/USD exchange rate movements. `;
-    reasoning += `Confidence is ${(pred30.confidence * 100).toFixed(0)}% based on historical volatility.`;
+    let reasoning =
+      `${companyName} (${ticker}) is currently trading at ₦${currentPrice.toFixed(2)}. ` +
+      `Based on recent price trends and linear regression analysis, the model suggests a ${direction30} ` +
+      `trajectory over the next 30 days, with a base case target of ₦${pred30.price.toFixed(2)}. ` +
+      `Key factors include sector performance, CBN monetary policy, and NGN/USD exchange rate movements. ` +
+      `Confidence is ${(pred30.confidence * 100).toFixed(0)}% based on historical volatility.`;
 
-    const client = getAnthropicClient();
-    if (client) {
-      try {
-        const response = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 300,
-          messages: [
-            {
-              role: "user",
-              content: `Provide a 2-3 sentence plain-English stock analysis for ${companyName} (${ticker}) currently at ₦${currentPrice}. 30-day forecast: ₦${pred30.price}. Focus on Nigerian market context. Be concise.`,
-            },
-          ],
-        });
-        const text = response.content[0];
-        if (text.type === "text") reasoning = text.text;
-      } catch {
-        // Use fallback reasoning
-      }
-    }
+    const mastraText = await tryGenerateText(
+      "stockAnalysisAgent",
+      `Write a 2–3 sentence plain-English analysis for the NGX stock ${companyName} (${ticker}) ` +
+        `currently at ₦${currentPrice}. The 30-day quantitative forecast is ₦${pred30.price}. ` +
+        `Reference Nigerian market context (CBN policy, NGN/USD, sector dynamics). ` +
+        `Do NOT call any tools — answer directly. Be concise.`
+    );
+    if (mastraText) reasoning = mastraText.trim();
 
     return {
       ticker,
@@ -103,83 +129,8 @@ export class AIService {
     currentPrice: number,
     companyName: string
   ): Promise<SimulationResult> {
-    const secLevy = amount * 0.003;
-    const nseFee = amount * 0.003;
-    const brokerCommission = amount * 0.014;
-    const totalFees = secLevy + nseFee + brokerCommission;
-    const netAmount = amount - totalFees;
-    const shares = Math.floor(netAmount / currentPrice);
-    const actualSpent = shares * currentPrice;
-
-    const ohlcv = await StockDataService.getOHLCV(ticker, 30);
-    const prices =
-      ohlcv.length > 1 ? ohlcv.map((d) => d.close) : [currentPrice * 0.97, currentPrice];
-    const pred = linearRegressionForecast(prices, 30);
-    const volatility = currentPrice
-      ? (Math.max(...prices) - Math.min(...prices)) / currentPrice
-      : 0.05;
-
-    const scenarios: SimulationResult["scenarios"] = [
-      {
-        label: "bear",
-        projectedPrice: Math.round(currentPrice * (1 - volatility) * 100) / 100,
-        projectedValue: 0,
-        gainLoss: 0,
-        gainLossPercent: 0,
-      },
-      {
-        label: "base",
-        projectedPrice: pred.price,
-        projectedValue: 0,
-        gainLoss: 0,
-        gainLossPercent: 0,
-      },
-      {
-        label: "bull",
-        projectedPrice: Math.round(currentPrice * (1 + volatility) * 100) / 100,
-        projectedValue: 0,
-        gainLoss: 0,
-        gainLossPercent: 0,
-      },
-    ];
-
-    for (const s of scenarios) {
-      s.projectedValue = shares * s.projectedPrice;
-      s.gainLoss = s.projectedValue - actualSpent - totalFees;
-      s.gainLossPercent = (s.gainLoss / amount) * 100;
-    }
-
-    let narrative = `If you invest ₦${amount.toLocaleString()} in ${companyName}, you'd purchase approximately ${shares} shares at ₦${currentPrice.toFixed(2)} each after fees.`;
-
-    const client = getAnthropicClient();
-    if (client) {
-      try {
-        const response = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 200,
-          messages: [
-            {
-              role: "user",
-              content: `Write 2 sentences about simulating a ₦${amount} investment in ${ticker} (${companyName}) at ₦${currentPrice}/share, buying ${shares} shares. Mention Nigerian broker fees. Educational only.`,
-            },
-          ],
-        });
-        const text = response.content[0];
-        if (text.type === "text") narrative = text.text;
-      } catch {
-        // Use fallback
-      }
-    }
-
-    return {
-      ticker,
-      amount,
-      shares,
-      pricePerShare: currentPrice,
-      fees: { secLevy, nseFee, brokerCommission, total: totalFees },
-      scenarios,
-      narrative,
-    };
+    const { simulateTradeWithForecast } = await import("@/lib/dashboard/trade-simulation");
+    return simulateTradeWithForecast(ticker, amount, currentPrice, companyName);
   }
 
   static async generateMarketBrief(): Promise<MarketBrief> {
@@ -189,45 +140,41 @@ export class AIService {
       "The NGX All-Share Index showed modest gains today, led by banking and industrial sectors. " +
       "Investors remain cautious ahead of the next CBN MPC meeting, with forex liquidity concerns persisting.";
 
-    let sectorSignals = [
-      { sector: "Banking", signal: "Strong earnings season driving inflows", direction: "in" as const },
-      { sector: "Oil & Gas", signal: "Crude price volatility weighing on sentiment", direction: "out" as const },
-      { sector: "Telecoms", signal: "5G expansion supporting growth outlook", direction: "in" as const },
-      { sector: "Consumer Goods", signal: "Inflation pressure on margins", direction: "neutral" as const },
+    let sectorSignals: MarketBrief["sectorSignals"] = [
+      { sector: "Banking", signal: "Strong earnings season driving inflows", direction: "in" },
+      { sector: "Oil & Gas", signal: "Crude price volatility weighing on sentiment", direction: "out" },
+      { sector: "Telecoms", signal: "5G expansion supporting growth outlook", direction: "in" },
+      { sector: "Consumer Goods", signal: "Inflation pressure on margins", direction: "neutral" },
     ];
 
-    let macroWatchpoints = [
+    let macroWatchpoints: string[] = [
       "CBN MPC meeting — interest rate decision expected",
       "OPEC+ production quota review",
       "NGN/USD exchange rate stability",
       "Q1 corporate earnings season",
     ];
 
-    const client = getAnthropicClient();
-    if (client) {
+    const mastraText = await tryGenerateText(
+      "marketBriefAgent",
+      `Generate a structured daily Nigerian stock market brief for ${today}. ` +
+        `Respond ONLY with valid JSON, no markdown fences. Schema: ` +
+        `{ "summary": string (3 sentences), ` +
+        `"sectorSignals": [{ "sector": string, "signal": string, "direction": "in"|"out"|"neutral" }] (exactly 4), ` +
+        `"macroWatchpoints": string[] (exactly 4) }. ` +
+        `Do NOT call any tools.`
+    );
+
+    if (mastraText) {
       try {
-        const response = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 600,
-          messages: [
-            {
-              role: "user",
-              content: `Generate a daily Nigerian stock market brief for ${today}. Include: 1) A 3-sentence market summary, 2) 4 sector rotation signals (sector, signal, direction: in/out/neutral), 3) 4 macro watchpoints for Nigeria. Return as JSON with keys: summary, sectorSignals (array of {sector, signal, direction}), macroWatchpoints (array of strings).`,
-            },
-          ],
-        });
-        const text = response.content[0];
-        if (text.type === "text") {
-          const jsonMatch = text.text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            summary = parsed.summary || summary;
-            if (parsed.sectorSignals) sectorSignals = parsed.sectorSignals;
-            if (parsed.macroWatchpoints) macroWatchpoints = parsed.macroWatchpoints;
-          }
+        const match = mastraText.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]) as Partial<MarketBrief>;
+          if (typeof parsed.summary === "string") summary = parsed.summary;
+          if (Array.isArray(parsed.sectorSignals)) sectorSignals = parsed.sectorSignals;
+          if (Array.isArray(parsed.macroWatchpoints)) macroWatchpoints = parsed.macroWatchpoints;
         }
       } catch {
-        // Use fallback
+        /* fall back to defaults above */
       }
     }
 
@@ -238,28 +185,5 @@ export class AIService {
       macroWatchpoints,
       disclaimer: AI_DISCLAIMER,
     };
-  }
-
-  static async summariseArticle(title: string, content: string): Promise<string> {
-    const client = getAnthropicClient();
-    if (!client) return content.slice(0, 200) + "...";
-
-    try {
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 100,
-        messages: [
-          {
-            role: "user",
-            content: `Summarise this Nigerian financial news article in exactly 2 sentences:\n\nTitle: ${title}\n\n${content.slice(0, 1000)}`,
-          },
-        ],
-      });
-      const text = response.content[0];
-      if (text.type === "text") return text.text;
-    } catch {
-      // Fallback
-    }
-    return content.slice(0, 200) + "...";
   }
 }

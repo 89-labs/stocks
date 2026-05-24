@@ -23,9 +23,9 @@ See [`.env.example`](.env.example). Only `MONGODB_URI` and `NEXTAUTH_SECRET` are
 | `MONGODB_DB` | No | Defaults to `naijastocks` |
 | `NEXTAUTH_URL` / `NEXTAUTH_SECRET` | Yes (for auth) | Authentication |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google OAuth |
-| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | No | Production caching + rate limiting |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | No | Upstash caching + rate limiting (graceful fallback) |
 | `TWELVE_DATA_API_KEY` | No | Secondary quote source |
-| `ANTHROPIC_API_KEY` | No | AI predictions & briefs (graceful fallback) |
+| `GROQ_API_KEY` | No | AI predictions & briefs via Mastra agents (graceful fallback) |
 
 ## Data Sources
 

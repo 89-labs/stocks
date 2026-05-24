@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
-import { Header, Footer, MobileBottomNav } from "@/components/layout/header";
+import { AppShell } from "@/components/layout/app-shell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,10 +48,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <AppProviders>
-          <Header />
-          <main className="flex-1 pb-20 md:pb-0">{children}</main>
-          <Footer />
-          <MobileBottomNav />
+          <AppShell>{children}</AppShell>
         </AppProviders>
       </body>
     </html>
