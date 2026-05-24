@@ -95,7 +95,7 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
         type="button"
         onClick={() => {
           onNavigate?.();
-          void signOut({ callbackUrl: "/" });
+          void signOut({ callbackUrl: "/", redirect: true });
         }}
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
         aria-label="Sign out"
@@ -239,7 +239,7 @@ export function Header() {
                     type="button"
                     onClick={() => {
                       closeMobile();
-                      void signOut({ callbackUrl: "/" });
+                      void signOut({ callbackUrl: "/", redirect: true });
                     }}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300"
                   >

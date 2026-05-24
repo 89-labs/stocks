@@ -329,7 +329,10 @@ export function SettingsForm({
               label="Sign out"
               hint="End your session on this device."
             >
-              <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+              <Button
+                variant="outline"
+                onClick={() => void signOut({ callbackUrl: "/", redirect: true })}
+              >
                 Sign out
               </Button>
             </SettingRow>

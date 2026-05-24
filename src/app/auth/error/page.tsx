@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  Configuration: "There is a problem with the server configuration.",
-  AccessDenied: "You do not have permission to sign in.",
-  Verification: "The sign-in link is no longer valid.",
-  Default: "An error occurred during authentication.",
-};
+import { getSignInErrorMessage } from "@/lib/auth/errors";
 
 interface PageProps {
   searchParams: Promise<{ error?: string }>;
@@ -14,7 +8,7 @@ interface PageProps {
 
 export default async function AuthErrorPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const message = ERROR_MESSAGES[params.error ?? ""] ?? ERROR_MESSAGES.Default;
+  const message = getSignInErrorMessage(params.error);
 
   return (
     <div className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center px-4 py-12 text-center">

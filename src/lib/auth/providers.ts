@@ -9,28 +9,46 @@ export interface AuthProviderMeta {
 const PROVIDER_META: Record<AuthProviderId, Omit<AuthProviderMeta, "id">> = {
   google: {
     name: "Google",
-    description: "Sign in with your Google account",
+    description: "Sign up or sign in with your Google account",
   },
   email: {
     name: "Email",
     description: "We'll send you a magic link — no password needed",
   },
   credentials: {
-    name: "Instant access",
-    description: "Continue without email or OAuth verification",
+    name: "Email & password",
+    description: "Sign in with your username and password",
   },
 };
 
-/** Dev-only instant login — set DEV_AUTH_ENABLED=true in .env */
-export function isDevAuthEnabled(): boolean {
-  if (process.env.DEV_AUTH_ENABLED === "true") return true;
-  return process.env.NODE_ENV === "development" && Boolean(process.env.NEXTAUTH_SECRET);
+/** Email/password accounts stored in MongoDB */
+export function isCredentialsAuthEnabled(): boolean {
+  return Boolean(process.env.NEXTAUTH_SECRET?.trim() && process.env.MONGODB_URI?.trim());
+}
+
+/** Google OAuth (requires MongoDB adapter + client credentials) */
+export function isGoogleAuthEnabled(): boolean {
+  const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  return Boolean(
+    process.env.NEXTAUTH_SECRET?.trim() &&
+      process.env.MONGODB_URI?.trim() &&
+      googleId &&
+      googleSecret &&
+      googleId !== "..." &&
+      googleSecret !== "..."
+  );
+}
+
+/** Sign-up page can use email/password and/or Google */
+export function isRegistrationAvailable(): boolean {
+  return isCredentialsAuthEnabled() || isGoogleAuthEnabled();
 }
 
 export function getConfiguredProviders(): AuthProviderMeta[] {
   const providers: AuthProviderMeta[] = [];
 
-  if (isDevAuthEnabled()) {
+  if (isCredentialsAuthEnabled()) {
     providers.push({ id: "credentials", ...PROVIDER_META.credentials });
   }
 
@@ -52,5 +70,3 @@ export function getConfiguredProviders(): AuthProviderMeta[] {
 export function isAuthConfigured(): boolean {
   return Boolean(process.env.NEXTAUTH_SECRET) && getConfiguredProviders().length > 0;
 }
-
-export const DEV_USER_ID = "dev-local-user";

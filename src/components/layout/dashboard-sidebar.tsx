@@ -210,7 +210,7 @@ function UserSection({ collapsed }: { collapsed: boolean }) {
       <CollapsedTooltip label="Sign out" collapsed={collapsed}>
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => void signOut({ callbackUrl: "/", redirect: true })}
           className={cn(
             "mt-2 flex w-full items-center rounded-xl text-xs font-semibold text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-100",
             collapsed ? "justify-center px-2 py-2" : "justify-center gap-2 px-3 py-2"
